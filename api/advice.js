@@ -1,10 +1,8 @@
 export default async function handler(req, res) {
-  // Allow requests from any origin (your readers)
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.setHeader("Access-Control-Allow-Headers", "Content-Type");
 
-  // Handle preflight
   if (req.method === "OPTIONS") return res.status(200).end();
 
   if (req.method !== "POST") {
@@ -31,18 +29,19 @@ Rules:
 - End with one blunt Murphy's Law-style truth that sums it all up in one sentence. Label it: Murphy's Law:`;
 
   try {
-    const response = await fetch("https://api.anthropic.com/v1/messages", {
+    const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        "Authorization": `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
+        model: "llama-3.3-70b-versatile",
         max_tokens: 1000,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: "user", content: input.trim() }],
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: input.trim() }
+        ],
       }),
     });
 
@@ -52,7 +51,7 @@ Rules:
       return res.status(500).json({ error: data.error?.message || "API error" });
     }
 
-    const text = data.content.map((b) => b.text || "").join("");
+    const text = data.choices[0].message.content;
     return res.status(200).json({ output: text });
 
   } catch (err) {
