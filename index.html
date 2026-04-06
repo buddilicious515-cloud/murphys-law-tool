@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Murphy's Law Principles — Practical Advice Tool</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100vh;
+      background: #0f0d0b;
+      font-family: Georgia, "Times New Roman", serif;
+      color: #e8e0d5;
+    }
+
+    header {
+      border-bottom: 1px solid #1e1a16;
+      padding: 28px 36px 22px;
+      position: sticky;
+      top: 0;
+      background: #0f0d0b;
+      z-index: 10;
+    }
+
+    .header-inner { max-width: 620px; margin: 0 auto; }
+
+    .eyebrow {
+      font-size: 10px;
+      letter-spacing: 0.35em;
+      color: #c0392b;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+
+    h1 {
+      font-size: 22px;
+      font-weight: normal;
+      color: #f0e6d8;
+    }
+
+    main {
+      max-width: 620px;
+      margin: 0 auto;
+      padding: 32px 36px 80px;
+    }
+
+    textarea {
+      width: 100%;
+      background: #181411;
+      border: 1px solid #252018;
+      border-radius: 4px;
+      padding: 14px 16px;
+      color: #e8e0d5;
+      font-size: 15px;
+      font-family: Georgia, serif;
+      outline: none;
+      resize: vertical;
+      line-height: 1.7;
+      margin-bottom: 12px;
+      transition: border-color 0.2s;
+    }
+
+    textarea:focus { border-color: #c0392b; }
+
+    textarea::placeholder { color: #3a3028; }
+
+    #submit-btn {
+      width: 100%;
+      background: #c0392b;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      padding: 14px;
+      font-size: 13px;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: Georgia, serif;
+      transition: background 0.2s;
+    }
+
+    #submit-btn:disabled {
+      background: #1a1712;
+      color: #3a3028;
+      cursor: not-allowed;
+    }
+
+    .error {
+      color: #c0392b;
+      font-size: 12px;
+      margin-top: 8px;
+    }
+
+    #output-section { margin-top: 28px; display: none; }
+
+    .output-card {
+      background: #131110;
+      border: 1px solid #1e1a16;
+      border-left: 3px solid #c0392b;
+      border-radius: 4px;
+      padding: 24px 26px;
+    }
+
+    #output-text {
+      font-size: 15px;
+      line-height: 1.9;
+      color: #d8cfc6;
+      white-space: pre-wrap;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 10px;
+      margin-top: 12px;
+    }
+
+    .btn-secondary {
+      flex: 1;
+      background: transparent;
+      border: 1px solid #252018;
+      border-radius: 4px;
+      padding: 10px;
+      color: #6a5e52;
+      font-size: 11px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      cursor: pointer;
+      font-family: Georgia, serif;
+      transition: color 0.2s;
+    }
+
+    .btn-secondary:hover { color: #a09080; }
+
+    #empty-state {
+      text-align: center;
+      padding: 48px 0;
+      margin-top: 24px;
+      border-top: 1px solid #181411;
+      color: #2a2420;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+    }
+
+    #loading-state {
+      text-align: center;
+      padding: 48px 0;
+      margin-top: 24px;
+      border-top: 1px solid #181411;
+      color: #3a3028;
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-inner">
+      <div class="eyebrow">Murphy's Law Principles for Adults</div>
+      <h1>What should I do about this?</h1>
+    </div>
+  </header>
+
+  <main>
+    <textarea
+      id="user-input"
+      rows="4"
+      placeholder="Type your situation here... e.g. I keep overpreparing but still get caught off guard"
+    ></textarea>
+
+    <button id="submit-btn" onclick="handleSubmit()">Get Practical Advice</button>
+
+    <div id="error-msg" class="error" style="display:none;"></div>
+
+    <div id="loading-state">Thinking...</div>
+
+    <div id="output-section">
+      <div class="output-card">
+        <div id="output-text"></div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-secondary" onclick="handleCopy()" id="copy-btn">Copy</button>
+        <button class="btn-secondary" onclick="handleReset()">New</button>
+      </div>
+    </div>
+
+    <div id="empty-state">Describe your situation and get straight advice</div>
+  </main>
+
+  <script>
+    async function handleSubmit() {
+      const input = document.getElementById("user-input").value.trim();
+      if (!input) return;
+
+      setLoading(true);
+      hideError();
+      hideOutput();
+
+      try {
+        const res = await fetch("/api/advice", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ input }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.error || "Something went wrong.");
+
+        showOutput(data.output);
+      } catch (err) {
+        showError(err.message || "Something went wrong. Try again.");
+      }
+
+      setLoading(false);
+    }
+
+    function handleCopy() {
+      const text = document.getElementById("output-text").innerText;
+      navigator.clipboard.writeText(text);
+      const btn = document.getElementById("copy-btn");
+      btn.textContent = "Copied";
+      setTimeout(() => (btn.textContent = "Copy"), 2000);
+    }
+
+    function handleReset() {
+      document.getElementById("user-input").value = "";
+      hideOutput();
+      hideError();
+      document.getElementById("empty-state").style.display = "block";
+      document.getElementById("user-input").focus();
+    }
+
+    function setLoading(state) {
+      const btn = document.getElementById("submit-btn");
+      const loading = document.getElementById("loading-state");
+      const empty = document.getElementById("empty-state");
+
+      btn.disabled = state;
+      btn.textContent = state ? "Thinking..." : "Get Practical Advice";
+      loading.style.display = state ? "block" : "none";
+      empty.style.display = state ? "none" : (document.getElementById("output-section").style.display === "none" ? "block" : "none");
+    }
+
+    function showOutput(text) {
+      document.getElementById("output-text").textContent = text;
+      document.getElementById("output-section").style.display = "block";
+      document.getElementById("empty-state").style.display = "none";
+    }
+
+    function hideOutput() {
+      document.getElementById("output-section").style.display = "none";
+    }
+
+    function showError(msg) {
+      const el = document.getElementById("error-msg");
+      el.textContent = msg;
+      el.style.display = "block";
+    }
+
+    function hideError() {
+      document.getElementById("error-msg").style.display = "none";
+    }
+
+    // Enable/disable button based on input
+    document.getElementById("user-input").addEventListener("input", function () {
+      document.getElementById("submit-btn").disabled = !this.value.trim();
+    });
+
+    // Submit on Ctrl+Enter
+    document.getElementById("user-input").addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && e.ctrlKey) handleSubmit();
+    });
+  </script>
+
+</body>
+</html>
